@@ -77,10 +77,19 @@ export default function AdminFAQs() {
     setSaving(true);
     try {
       if (editingFaq) {
-        await faqsService.update(editingFaq.id, formData.question, formData.answer);
+        await faqsService.update(editingFaq.id, {
+          question: formData.question,
+          answer: formData.answer
+        });
         toast({ title: "Updated", description: "FAQ updated successfully." });
       } else {
-        await faqsService.create(formData.question, formData.answer);
+        // Get the next order_index
+        const nextOrder = faqs.length > 0 ? Math.max(...faqs.map(f => f.order_index)) + 1 : 1;
+        await faqsService.create({
+          question: formData.question,
+          answer: formData.answer,
+          order_index: nextOrder
+        });
         toast({ title: "Created", description: "FAQ created successfully." });
       }
       setDialogOpen(false);
