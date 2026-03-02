@@ -8,6 +8,8 @@ const __dirname = path.dirname(__filename);
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  root: ".",
+  publicDir: "public",
   server: {
     host: "::",
     port: 8080,
@@ -23,6 +25,7 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    emptyOutDir: true,
     sourcemap: false,
   },
 });
