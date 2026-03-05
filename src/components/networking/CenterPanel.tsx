@@ -1,53 +1,34 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, Hash, Users, Filter, X } from "lucide-react";
-import { Channel, ChannelMessage, StartupShowcase as ShowcaseType, COLLABORATION_TAGS, UserGroup } from "@/services/networking";
-import MessageThread from "./MessageThread";
-import StartupShowcase from "./StartupShowcase";
+import { ArrowLeft, Send, Users, Hash } from "lucide-react";
+import { networkingService, Channel, ChannelMessage } from "@/services/networking";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-interface CenterPanelProps {
-  channel: Channel | null;
-  group: UserGroup | null;
-  messages: ChannelMessage[];
-  showcases: ShowcaseType[];
-  isMember: boolean;
-  onJoinChannel: () => void;
-  onSendMessage: (content: string, tags?: string[]) => Promise<void>;
-  onEditMessage: (messageId: string, content: string) => Promise<void>;
-  onDeleteMessage: (messageId: string) => Promise<void>;
-  onCreateShowcase: (showcase: Partial<ShowcaseType>) => Promise<void>;
-  onReplyToMessage: (messageId: string) => void;
-}
-
-export default function CenterPanel({
-  channel,
-  group,
-  messages,
-  showcases,
-  isMember,
-  onJoinChannel,
-  onSendMessage,
-  onEditMessage,
-  onDeleteMessage,
-  onCreateShowcase,
-  onReplyToMessage,
-}: CenterPanelProps) {
+export default function ChannelViewPage() {
+  const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [newMessage, setNewMessage] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [filterTag, setFilterTag] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
+  const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  const [channel, setChannel] = useState<Channel | null>(null);
+  const [messages, setMessages] = useState<ChannelMessage[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [isMember, setIsMember] = useState(false);
 
-  const currentItem = channel || group;
-  const isChannel = !!channel;
+  useEffect(() => {
+    if (id) {
+      loadChannel();
+      checkMembership();
+    }
+  }, [id]);
 
   useEffect(() => {
     scrollToBottom();
@@ -57,7 +38,67 @@ export default function CenterPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSend = async (e: React.FormEvent) => {
+  const loadChannel = async () => {
+    try {
+      const channelData = await networkingService.getChannelById(id!);
+      setChannel(channelData);
+      
+      // Load messages if user is a member
+      const memberStatus = await networkingService.isChannelMember(id!);
+      setIsMember(memberStatus);
+      
+      if (memberStatus) {
+        const messagesData = await networkingService.getChannelMessages(id!);
+        setMessages(messagesData);
+      }
+    } catch (error) {
+      console.error('Error loading channel:', error);
+      toast.error("Failed to load channel");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkMembership = async () => {
+    if (!user) return;
+    try {
+      const memberStatus = await networkingService.isChannelMember(id!);
+      setIsMember(memberStatus);
+    } catch (error) {
+      console.error('Error checking membership:', error);
+    }
+  };
+
+  const handleJoin = async () => {
+    if (!user) {
+      toast.error("Please login to join channels");
+      navigate('/login');
+      return;
+    }
+
+    try {
+      await networkingService.joinChannel(id!);
+      toast.success("Joined channel successfully");
+      setIsMember(true);
+      loadChannel();
+    } catch (error) {
+      console.error('Error joining channel:', error);
+      toast.error("Failed to join channel");
+    }
+  };
+
+  const handleLeave = async () => {
+    try {
+      await networkingService.leaveChannel(id!);
+      toast.success("Left channel successfully");
+      navigate('/network');
+    } catch (error) {
+      console.error('Error leaving channel:', error);
+      toast.error("Failed to leave channel");
+    }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!newMessage.trim()) return;
@@ -68,9 +109,12 @@ export default function CenterPanel({
 
     setSending(true);
     try {
-      await onSendMessage(newMessage.trim(), selectedTags);
+      await networkingService.sendMessage(id!, newMessage.trim());
       setNewMessage("");
-      setSelectedTags([]);
+      
+      // Reload messages
+      const messagesData = await networkingService.getChannelMessages(id!);
+      setMessages(messagesData);
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error("Failed to send message");
@@ -79,208 +123,177 @@ export default function CenterPanel({
     }
   };
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags(prev =>
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-    );
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return date.toLocaleDateString();
   };
 
-  // Group messages by thread
-  const threadedMessages = messages.reduce((acc, msg) => {
-    if (!msg.reply_to) {
-      acc[msg.id] = { message: msg, replies: [] };
-    }
-    return acc;
-  }, {} as Record<string, { message: ChannelMessage; replies: ChannelMessage[] }>);
-
-  messages.forEach(msg => {
-    if (msg.reply_to && threadedMessages[msg.reply_to]) {
-      threadedMessages[msg.reply_to].replies.push(msg);
-    }
-  });
-
-  const filteredMessages = filterTag
-    ? Object.values(threadedMessages).filter(thread =>
-        thread.message.tags?.includes(filterTag)
-      )
-    : Object.values(threadedMessages);
-
-  if (!currentItem) {
+  if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-background">
-        <div className="text-center text-muted-foreground">
-          <Hash className="h-16 w-16 mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-semibold mb-2">Welcome to Network</p>
-          <p className="text-sm">Select a channel or group from the sidebar to start collaborating</p>
-        </div>
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="pt-28 pb-24">
+          <div className="container mx-auto px-6">
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            </div>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
-  if (!isMember) {
+  if (!channel) {
     return (
-      <div className="flex-1 flex flex-col bg-background">
-        {/* Channel/Group Header */}
-        <div className="border-b border-border p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{channel?.icon || (group?.is_private ? '🔒' : '👥')}</span>
-              <div>
-                <h2 className="font-display text-xl font-bold flex items-center gap-2">
-                  <Hash className="h-5 w-5" />
-                  {currentItem.name}
-                </h2>
-                <p className="text-sm text-muted-foreground">{currentItem.description}</p>
-              </div>
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="pt-28 pb-24">
+          <div className="container mx-auto px-6">
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold mb-4">Channel Not Found</h2>
+              <Button onClick={() => navigate('/network')}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Network
+              </Button>
             </div>
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              {currentItem.member_count} members
-            </Badge>
           </div>
-        </div>
-
-        {/* Join Prompt */}
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="text-center max-w-md">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Hash className="h-10 w-10 text-primary" />
-            </div>
-            <h3 className="font-display text-2xl font-bold mb-2">Join to Participate</h3>
-            <p className="text-muted-foreground mb-6">
-              Join {currentItem.name} to view messages, share insights, and collaborate with the community
-            </p>
-            <Button onClick={onJoinChannel} size="lg">
-              Join {isChannel ? 'Channel' : 'Group'}
-            </Button>
-          </div>
-        </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-background">
-      {/* Channel/Group Header */}
-      <div className="border-b border-border p-4 lg:mt-12">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">{channel?.icon || (group?.is_private ? '🔒' : '👥')}</span>
-            <div>
-              <h2 className="font-display text-xl font-bold flex items-center gap-2">
-                <Hash className="h-5 w-5" />
-                {currentItem.name}
-              </h2>
-              <p className="text-sm text-muted-foreground">{currentItem.description}</p>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+      <main className="flex-1 pt-20 flex flex-col">
+        <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full px-4">
+          {/* Channel Header */}
+          <div className="border-b border-border p-4 bg-card">
+            <div className="flex items-center gap-3 mb-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/network')}
+                className="hover:bg-accent"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {filterTag && (
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <Filter className="h-3 w-3" />
-                {COLLABORATION_TAGS.find(t => t.value === filterTag)?.label}
-                <button onClick={() => setFilterTag(null)} className="ml-1">
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            )}
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              {currentItem.member_count}
-            </Badge>
-          </div>
-        </div>
-      </div>
-
-      {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Startup Showcases - Only for channels */}
-          {isChannel && (
-            <StartupShowcase
-              showcases={showcases}
-              channelId={channel!.id}
-              onCreateShowcase={onCreateShowcase}
-              canCreate={!!user}
-            />
-          )}
-
-          {/* Messages */}
-          <div className="space-y-3">
-            {filteredMessages.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No messages yet. Start the conversation!</p>
+            
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <span className="text-3xl flex-shrink-0">{channel.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <h1 className="font-display text-xl font-bold flex items-center gap-2 mb-1">
+                    <Hash className="h-5 w-5 flex-shrink-0" />
+                    <span>{channel.name}</span>
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    {channel.description}
+                  </p>
+                </div>
               </div>
-            ) : (
-              filteredMessages.map(({ message, replies }) => (
-                <MessageThread
-                  key={message.id}
-                  message={message}
-                  replies={replies}
-                  onReply={onReplyToMessage}
-                  onEdit={onEditMessage}
-                  onDelete={onDeleteMessage}
-                />
-              ))
-            )}
-            <div ref={messagesEndRef} />
+              
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {channel.member_count}
+                </Badge>
+                {isMember ? (
+                  <Button variant="outline" size="sm" onClick={handleLeave}>
+                    Leave
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={handleJoin}>
+                    Join
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </ScrollArea>
 
-      {/* Message Input */}
-      <div className="border-t border-border p-4 bg-card">
-        <div className="max-w-4xl mx-auto">
-          {selectedTags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-2">
-              {selectedTags.map(tag => {
-                const tagInfo = COLLABORATION_TAGS.find(t => t.value === tag);
-                return (
-                  <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                    {tagInfo?.icon} {tagInfo?.label}
-                    <button onClick={() => toggleTag(tag)} className="ml-1">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                );
-              })}
+          {/* Messages Area */}
+          {!isMember ? (
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="text-center max-w-md">
+                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Hash className="h-10 w-10 text-primary" />
+                </div>
+                <h2 className="font-display text-2xl font-bold mb-2">Join to Participate</h2>
+                <p className="text-muted-foreground mb-6">
+                  Join {channel.name} to view messages, share insights, and collaborate with the community
+                </p>
+                <Button onClick={handleJoin} size="lg">
+                  Join Channel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* Messages List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="max-w-4xl mx-auto space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <p>No messages yet. Be the first to start the conversation!</p>
+                    </div>
+                  ) : (
+                    messages.map((message) => (
+                      <div key={message.id} className="flex gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-semibold text-primary">
+                            {message.profiles?.full_name?.charAt(0) || 'U'}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 mb-1">
+                            <span className="font-semibold text-sm">
+                              {message.profiles?.full_name || 'Anonymous'}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatTime(message.created_at)}
+                            </span>
+                          </div>
+                          <p className="text-sm break-words">{message.content}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              </div>
+
+              {/* Message Input */}
+              <div className="border-t border-border p-4 bg-card">
+                <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto">
+                  <div className="flex gap-2">
+                    <Input
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder={`Message #${channel.name}`}
+                      className="flex-1"
+                      disabled={sending}
+                    />
+                    <Button type="submit" disabled={sending || !newMessage.trim()}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
-          
-          <form onSubmit={handleSend} className="flex gap-2">
-            <Select onValueChange={toggleTag}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Add tag..." />
-              </SelectTrigger>
-              <SelectContent>
-                {COLLABORATION_TAGS.map(tag => (
-                  <SelectItem key={tag.value} value={tag.value}>
-                    <span className="flex items-center gap-2">
-                      {tag.icon} {tag.label}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder={`Message ${isChannel ? '#' : ''}${currentItem.name}`}
-              className="flex-1"
-              disabled={sending}
-            />
-            
-            <Button type="submit" disabled={sending || !newMessage.trim()}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </form>
-          
-          <p className="text-xs text-muted-foreground mt-2">
-            {newMessage.length}/2000 characters
-          </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
