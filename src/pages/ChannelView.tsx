@@ -178,41 +178,47 @@ export default function ChannelViewPage() {
         <div className="container mx-auto px-6 h-full max-w-6xl">
           {/* Channel Header */}
           <div className="bg-card border border-border rounded-lg p-4 mb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate('/network')}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{channel.icon}</span>
-                  <div>
-                    <h1 className="font-display text-xl font-bold flex items-center gap-2">
-                      <Hash className="h-5 w-5" />
-                      {channel.name}
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                      {channel.description}
-                    </p>
-                  </div>
+            {/* Back Button Row */}
+            <div className="mb-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/network')}
+                className="hover:bg-accent"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            </div>
+            
+            {/* Channel Info Row */}
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <span className="text-3xl flex-shrink-0">{channel.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <h1 className="font-display text-xl font-bold flex items-center gap-2 mb-1">
+                    <Hash className="h-5 w-5 flex-shrink-0" />
+                    <span className="truncate">{channel.name}</span>
+                  </h1>
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {channel.description}
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              
+              {/* Actions */}
+              <div className="flex items-center gap-3 flex-shrink-0">
                 <Badge variant="outline" className="flex items-center gap-1">
                   <Users className="h-3 w-3" />
-                  {channel.member_count} members
+                  {channel.member_count}
                 </Badge>
                 {isMember ? (
                   <Button variant="outline" size="sm" onClick={handleLeave}>
-                    Leave Channel
+                    Leave
                   </Button>
                 ) : (
                   <Button size="sm" onClick={handleJoin}>
-                    Join Channel
+                    Join
                   </Button>
                 )}
               </div>
