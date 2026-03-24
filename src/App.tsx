@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AIChatWidget from "@/components/AIChatWidget";
 import Index from "./pages/Index";
 import Consultants from "./pages/Consultants";
 import Booking from "./pages/Booking";
@@ -37,6 +38,13 @@ import AdminNetworkingGroups from "./pages/admin/AdminNetworkingGroups";
 import AdminNetworkingMessages from "./pages/admin/AdminNetworkingMessages";
 import AdminNetworkingShowcases from "./pages/admin/AdminNetworkingShowcases";
 import AdminNetworkingReports from "./pages/admin/AdminNetworkingReports";
+import AdminConsultantApplications from "./pages/admin/AdminConsultantApplications";
+import ApplyConsultant from "./pages/ApplyConsultant";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import NetworkingTerms from "./pages/NetworkingTerms";
+import Meeting from "./pages/Meeting";
+import Review from "./pages/Review";
 
 const queryClient = new QueryClient();
 
@@ -49,7 +57,8 @@ const App = () => (
             <TooltipProvider>
               <Toaster />
               <Sonner />
-              <BrowserRouter>
+              <AIChatWidget />
+              <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
               <Route path="/" element={<Consultants />} />
               <Route path="/home" element={<Index />} />
@@ -67,6 +76,12 @@ const App = () => (
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:id" element={<BlogPost />} />
               <Route path="/faqs" element={<FAQs />} />
+              <Route path="/apply-consultant" element={<ApplyConsultant />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/networking-terms" element={<NetworkingTerms />} />
+              <Route path="/meeting/:roomId" element={<Meeting />} />
+              <Route path="/review/:bookingId" element={<Review />} />
               <Route path="/login" element={<Login />} />
               <Route
                 path="/admin"
@@ -91,6 +106,7 @@ const App = () => (
                 <Route path="networking/messages" element={<AdminNetworkingMessages />} />
                 <Route path="networking/showcases" element={<AdminNetworkingShowcases />} />
                 <Route path="networking/reports" element={<AdminNetworkingReports />} />
+                <Route path="consultant-applications" element={<AdminConsultantApplications />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
