@@ -33,9 +33,9 @@ export default function Footer() {
           <div>
             <h4 className="font-sans text-sm font-semibold text-foreground mb-4">Legal</h4>
             <div className="flex flex-col gap-2">
-              <Link to="/faqs" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link>
-              <Link to="/faqs" className="text-sm text-muted-foreground hover:text-primary transition-colors">Terms of Service</Link>
-              <Link to="/faqs" className="text-sm text-muted-foreground hover:text-primary transition-colors">Refund Policy</Link>
+              <Link to="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link>
+              <Link to="/terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">Terms of Service</Link>
+              <Link to="/networking-terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">Community Terms</Link>
             </div>
           </div>
         </div>

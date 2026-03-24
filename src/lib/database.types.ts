@@ -19,6 +19,7 @@ export interface Database {
           pricing_30: number
           pricing_60: number
           image_url: string | null
+          gender: 'male' | 'female'
           is_active: boolean
           created_at: string
         }
@@ -31,6 +32,7 @@ export interface Database {
           pricing_30: number
           pricing_60: number
           image_url?: string | null
+          gender?: 'male' | 'female'
           is_active?: boolean
           created_at?: string
         }
@@ -43,6 +45,7 @@ export interface Database {
           pricing_30?: number
           pricing_60?: number
           image_url?: string | null
+          gender?: 'male' | 'female'
           is_active?: boolean
           created_at?: string
         }
@@ -61,6 +64,7 @@ export interface Database {
           payment_status: 'pending' | 'paid' | 'refunded'
           session_duration: number | null
           session_price: number | null
+          meeting_room_id: string | null
           created_at: string
         }
         Insert: {
@@ -76,6 +80,7 @@ export interface Database {
           payment_status?: 'pending' | 'paid' | 'refunded'
           session_duration?: number | null
           session_price?: number | null
+          meeting_room_id?: string | null
           created_at?: string
         }
         Update: {
@@ -91,6 +96,7 @@ export interface Database {
           payment_status?: 'pending' | 'paid' | 'refunded'
           session_duration?: number | null
           session_price?: number | null
+          meeting_room_id?: string | null
           created_at?: string
         }
       }
@@ -104,6 +110,8 @@ export interface Database {
           rating: number
           image_url: string | null
           status: 'published' | 'draft'
+          consultant_id: string | null
+          booking_id: string | null
           created_at: string
         }
         Insert: {
@@ -115,6 +123,8 @@ export interface Database {
           rating: number
           image_url?: string | null
           status?: 'published' | 'draft'
+          consultant_id?: string | null
+          booking_id?: string | null
           created_at?: string
         }
         Update: {
@@ -126,6 +136,8 @@ export interface Database {
           rating?: number
           image_url?: string | null
           status?: 'published' | 'draft'
+          consultant_id?: string | null
+          booking_id?: string | null
           created_at?: string
         }
       }
@@ -228,6 +240,62 @@ export interface Database {
           role?: 'admin' | 'consultant' | 'client'
           full_name?: string | null
           created_at?: string
+        }
+      }
+      consultant_applications: {
+        Row: {
+          id: string
+          name: string
+          age: number
+          gender: 'male' | 'female'
+          qualification: string
+          current_job: string
+          location: string
+          experience: string
+          email: string
+          phone: string
+          whatsapp: string
+          linkedin_url: string | null
+          status: 'pending' | 'approved' | 'rejected'
+          admin_notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          age: number
+          gender: 'male' | 'female'
+          qualification: string
+          current_job: string
+          location: string
+          experience: string
+          email: string
+          phone: string
+          whatsapp: string
+          linkedin_url?: string | null
+          status?: 'pending' | 'approved' | 'rejected'
+          admin_notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          age?: number
+          gender?: 'male' | 'female'
+          qualification?: string
+          current_job?: string
+          location?: string
+          experience?: string
+          email?: string
+          phone?: string
+          whatsapp?: string
+          linkedin_url?: string | null
+          status?: 'pending' | 'approved' | 'rejected'
+          admin_notes?: string | null
+          created_at?: string
+          updated_at?: string
         }
       }
       faqs: {

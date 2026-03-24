@@ -16,6 +16,7 @@ import {
   MessageCircle,
   Sparkles,
   AlertTriangle,
+  UserPlus,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -36,6 +37,7 @@ const menuItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Content Control", url: "/admin/content", icon: Layers },
   { title: "Manage Consultants", url: "/admin/consultants", icon: Users },
+  { title: "Consultant Applications", url: "/admin/consultant-applications", icon: UserPlus },
   { title: "Manage Bookings", url: "/admin/bookings", icon: CalendarCheck },
   { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquareQuote },
   { title: "Blog", url: "/admin/blog", icon: FileText },

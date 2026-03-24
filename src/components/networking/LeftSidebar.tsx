@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -201,7 +202,7 @@ export default function LeftSidebar({
       </ScrollArea>
 
       {/* Create Group Button */}
-      <div className="p-3 border-t border-border">
+      <div className="p-3 border-t border-border space-y-2">
         <Button
           onClick={onCreateGroup}
           className="w-full"
@@ -210,6 +211,12 @@ export default function LeftSidebar({
           <Plus className="h-4 w-4 mr-2" />
           Create Group
         </Button>
+        <Link
+          to="/networking-terms"
+          className="block text-center text-xs text-muted-foreground hover:text-primary transition-colors py-1"
+        >
+          Community Terms
+        </Link>
       </div>
     </div>
   );

@@ -136,6 +136,11 @@ export default function Header() {
               </Button>
             </Link>
           )}
+          <Link to="/apply-consultant">
+            <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+              Become a Consultant
+            </Button>
+          </Link>
           <Link to="/booking">
             <Button size="sm" className="glow-gold-sm">
               Book a Session
@@ -191,7 +196,7 @@ export default function Header() {
                   Admin
                 </Link>
               )}
-              <div className="flex gap-3 pt-3 border-t border-border">
+              <div className="flex gap-3 pt-3 border-t border-border flex-col">
                 {user ? (
                   <>
                     <span className="text-sm text-muted-foreground py-2">
@@ -201,17 +206,22 @@ export default function Header() {
                       variant="outline"
                       size="sm"
                       onClick={handleSignOut}
-                      className="flex-1"
+                      className="w-full"
                     >
                       Sign Out
                     </Button>
                   </>
                 ) : (
-                  <Link to="/login" className="flex-1">
+                  <Link to="/login" className="w-full">
                     <Button variant="outline" size="sm" className="w-full">Sign In</Button>
                   </Link>
                 )}
-                <Link to="/booking" className="flex-1">
+                <Link to="/apply-consultant" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full border-primary text-primary">
+                    Become a Consultant
+                  </Button>
+                </Link>
+                <Link to="/booking" className="w-full">
                   <Button size="sm" className="w-full">Book a Session</Button>
                 </Link>
               </div>
