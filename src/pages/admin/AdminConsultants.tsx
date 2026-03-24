@@ -7,6 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
@@ -14,11 +21,16 @@ import {
 } from "@/components/ui/dialog";
 import { consultantsService } from "@/services/consultants";
 import { storageService } from "@/services/storage";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import type { Database } from "@/lib/database.types";
 
 type Consultant = Database['public']['Tables']['consultants']['Row'];
+
+const getDefaultAvatar = (gender?: string) => {
+  return gender === 'female' ? '/female-default.jpg' : '/male-default.png';
+};
 
 export default function AdminConsultants() {
   const { toast } = useToast();
@@ -31,6 +43,7 @@ export default function AdminConsultants() {
   const [editing, setEditing] = useState<Consultant | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Form state
@@ -41,7 +54,10 @@ export default function AdminConsultants() {
     expertise: "",
     pricing_30: 100,
     pricing_60: 180,
-    is_active: true
+    gender: "male" as 'male' | 'female',
+    is_active: true,
+    email: "",
+    user_id: ""
   });
 
   useEffect(() => {
@@ -73,10 +89,14 @@ export default function AdminConsultants() {
       expertise: "",
       pricing_30: 100,
       pricing_60: 180,
-      is_active: true
+      gender: "male",
+      is_active: true,
+      email: "",
+      user_id: ""
     });
     setImageFile(null);
     setImagePreview(null);
+    setImageRemoved(false);
     setDialogOpen(true);
   };
 
@@ -89,10 +109,14 @@ export default function AdminConsultants() {
       expertise: consultant.expertise.join(", "),
       pricing_30: consultant.pricing_30,
       pricing_60: consultant.pricing_60,
-      is_active: consultant.is_active
+      gender: consultant.gender || "male",
+      is_active: consultant.is_active,
+      email: consultant.email || "",
+      user_id: consultant.user_id || ""
     });
     setImageFile(null);
     setImagePreview(consultant.image_url);
+    setImageRemoved(false);
     setDialogOpen(true);
   };
 
@@ -111,6 +135,7 @@ export default function AdminConsultants() {
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setImageRemoved(true);
   };
 
   const handleSave = async () => {
@@ -125,9 +150,11 @@ export default function AdminConsultants() {
 
     setSaving(true);
     try {
-      let imageUrl = editing?.image_url || null;
+      // If image was explicitly removed, set to null
+      // If new file uploaded, use that
+      // Otherwise keep existing image
+      let imageUrl: string | null = imageRemoved ? null : (editing?.image_url || null);
 
-      // Upload image if new file selected
       if (imageFile) {
         try {
           imageUrl = await storageService.uploadFile('consultant-images', imageFile, `consultant-${Date.now()}`);
@@ -155,15 +182,58 @@ export default function AdminConsultants() {
         expertise: expertiseArray,
         pricing_30: form.pricing_30,
         pricing_60: form.pricing_60,
+        gender: form.gender,
         is_active: form.is_active,
-        image_url: imageUrl
+        image_url: imageUrl,
+        email: form.email || null,
+        user_id: form.user_id || null
       };
 
       if (editing) {
         await consultantsService.update(editing.id, consultantData);
+        
+        // If user_id is provided, ensure they have consultant role
+        if (consultantData.user_id) {
+          try {
+            const { error: roleError } = await supabase
+              .from('profiles')
+              .upsert({
+                id: consultantData.user_id,
+                role: 'consultant',
+                full_name: consultantData.name
+              });
+            
+            if (roleError) {
+              console.error('Error setting consultant role:', roleError);
+            }
+          } catch (roleErr) {
+            console.error('Error updating role:', roleErr);
+          }
+        }
+        
         toast({ title: "Updated", description: `${form.name} updated successfully` });
       } else {
-        await consultantsService.create(consultantData);
+        const newConsultant = await consultantsService.create(consultantData);
+        
+        // If user_id is provided, ensure they have consultant role
+        if (consultantData.user_id) {
+          try {
+            const { error: roleError } = await supabase
+              .from('profiles')
+              .upsert({
+                id: consultantData.user_id,
+                role: 'consultant',
+                full_name: consultantData.name
+              });
+            
+            if (roleError) {
+              console.error('Error setting consultant role:', roleError);
+            }
+          } catch (roleErr) {
+            console.error('Error updating role:', roleErr);
+          }
+        }
+        
         toast({ title: "Added", description: `${form.name} added successfully` });
       }
 
@@ -246,7 +316,8 @@ export default function AdminConsultants() {
               <TableRow className="hover:bg-transparent">
                 <TableHead className="text-xs">Name</TableHead>
                 <TableHead className="text-xs">Title</TableHead>
-                <TableHead className="text-xs">Category</TableHead>
+                <TableHead className="text-xs">Email</TableHead>
+                <TableHead className="text-xs">Role</TableHead>
                 <TableHead className="text-xs">30 min</TableHead>
                 <TableHead className="text-xs">60 min</TableHead>
                 <TableHead className="text-xs">Status</TableHead>
@@ -256,13 +327,31 @@ export default function AdminConsultants() {
             <TableBody>
               {filtered.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium text-sm">{c.name}</TableCell>
+                <TableCell className="font-medium text-sm">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={c.image_url || getDefaultAvatar(c.gender)}
+                      alt={c.name}
+                      className="w-8 h-8 rounded-full object-cover border border-border shrink-0"
+                    />
+                    {c.name}
+                  </div>
+                </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{c.title}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {c.email || <span className="text-muted-foreground/50">No email</span>}
+                  </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {c.expertise.slice(0, 2).map((exp, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">{exp}</Badge>
-                      ))}
+                    <div className="flex items-center gap-2">
+                      {c.user_id ? (
+                        <Badge variant="outline" className="text-xs bg-green-500/15 text-green-400 border-green-500/30">
+                          Linked
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs bg-yellow-500/15 text-yellow-400 border-yellow-500/30">
+                          No Account
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm">{formatPrice(c.pricing_30)}</TableCell>
@@ -302,9 +391,19 @@ export default function AdminConsultants() {
           {filtered.map((c) => (
             <div key={c.id} className="bg-card border border-border rounded-lg p-5 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-primary font-display font-bold text-sm">
-                  {c.name.split(" ").map((n) => n[0]).join("")}
-                </div>
+                {c.image_url ? (
+                  <img
+                    src={c.image_url}
+                    alt={c.name}
+                    className="w-10 h-10 rounded-full object-cover border border-border"
+                  />
+                ) : (
+                  <img
+                    src={getDefaultAvatar(c.gender)}
+                    alt={c.name}
+                    className="w-10 h-10 rounded-full object-cover border border-border"
+                  />
+                )}
                 <Badge variant="outline" className={`text-xs ${c.is_active ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-muted text-muted-foreground"}`}>
                   {c.is_active ? "Active" : "Inactive"}
                 </Badge>
@@ -399,6 +498,34 @@ export default function AdminConsultants() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
+                <Label>Email</Label>
+                <Input 
+                  type="email"
+                  value={form.email} 
+                  onChange={(e) => setForm({ ...form, email: e.target.value })} 
+                  className="bg-background border-border" 
+                  placeholder="consultant@example.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for login and notifications
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>User ID (Optional)</Label>
+                <Input 
+                  value={form.user_id} 
+                  onChange={(e) => setForm({ ...form, user_id: e.target.value })} 
+                  className="bg-background border-border" 
+                  placeholder="Leave empty for auto-link"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Link to existing user account
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label>30-min Session Price ({currencySymbol})</Label>
                 <Input 
                   type="number" 
@@ -424,6 +551,25 @@ export default function AdminConsultants() {
                   Current currency: {currency}
                 </p>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Gender</Label>
+              <Select 
+                value={form.gender} 
+                onValueChange={(value: 'male' | 'female') => setForm({ ...form, gender: value })}
+              >
+                <SelectTrigger className="bg-background border-border">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Used for appropriate avatar display when no image is uploaded
+              </p>
             </div>
 
             <div className="space-y-2">

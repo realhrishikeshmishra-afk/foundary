@@ -78,4 +78,12 @@ export const bookingsService = {
   async updatePaymentStatus(id: string, paymentStatus: Booking['payment_status']) {
     return this.update(id, { payment_status: paymentStatus });
   },
+
+  async reschedule(id: string, newDate: string, newTime: string) {
+    return this.update(id, { 
+      date: newDate, 
+      time: newTime,
+      status: 'confirmed' // Reset to confirmed when rescheduled
+    });
+  },
 };

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AnimatedSection from "@/components/AnimatedSection";
+import { SkeletonGrid } from "@/components/PageLoader";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
@@ -39,7 +40,7 @@ export default function PricingPage() {
           </AnimatedSection>
 
           {loading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading pricing...</div>
+            <SkeletonGrid count={3} cols={3} />
           ) : tiers.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p>Pricing information coming soon.</p>

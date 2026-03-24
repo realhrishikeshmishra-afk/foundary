@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function LoginPage() {
   const [isSignup, setIsSignup] = useState(false);
@@ -17,6 +17,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const { signUp, signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the page user was trying to access before login
+  const from = (location.state as any)?.from || "/";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +35,7 @@ export default function LoginPage() {
         const { error } = await signIn(email, password);
         if (error) throw error;
         toast.success("Welcome back!");
-        navigate("/");
+        navigate(from, { replace: true });
       }
     } catch (error: any) {
       toast.error(error.message || "An error occurred");

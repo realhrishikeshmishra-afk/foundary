@@ -63,7 +63,11 @@ export default function AdminOverview() {
     },
     { 
       label: "Total Revenue", 
-      value: formatPrice(bookings.filter(b => b.payment_status === 'paid').length * 150), 
+      value: formatPrice(
+        bookings
+          .filter(b => b.payment_status === 'paid')
+          .reduce((sum, b) => sum + (b.session_price || 0), 0)
+      ), 
       icon: DollarSign, 
       trend: `${bookings.filter(b => b.payment_status === 'paid').length} paid` 
     },

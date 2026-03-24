@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AnimatedSection from "@/components/AnimatedSection";
+import { SkeletonGrid } from "@/components/PageLoader";
 import { blogService } from "@/services/blog";
 
 interface BlogPost {
@@ -59,7 +60,7 @@ export default function BlogPage() {
           </AnimatedSection>
 
           {loading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading blog posts...</div>
+            <SkeletonGrid count={4} cols={2} />
           ) : posts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p>No blog posts available yet.</p>
