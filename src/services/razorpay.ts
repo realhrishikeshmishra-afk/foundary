@@ -14,7 +14,7 @@ export interface RazorpayOptions {
   sessionDuration: number;
   userName: string;
   userEmail: string;
-  onSuccess: (paymentId: string, orderId: string) => void;
+  onSuccess: (paymentId: string, orderId: string, signature: string) => void;
   onFailure: (error: any) => void;
 }
 
@@ -73,7 +73,8 @@ export async function initiateRazorpayPayment(options: RazorpayOptions): Promise
     handler: (response: any) => {
       options.onSuccess(
         response.razorpay_payment_id,
-        response.razorpay_order_id || options.bookingId
+        response.razorpay_order_id || options.bookingId,
+        response.razorpay_signature
       );
     },
   };
