@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { initiateRazorpayPayment } from "@/services/razorpay";
 import { emailService } from "@/services/email";
+import { supabase } from "@/lib/supabase";
 import { PageLoader } from "@/components/PageLoader";
 
 function Particle({ x, y, size, delay, dur }: { x: string; y: string; size: number; delay: number; dur: number }) {
@@ -105,17 +106,35 @@ export default function BookingPage() {
         amount: sessionPrice || 0, currency: "INR", bookingId: booking.id,
         consultantName: selectedConsultant?.name || "", sessionDuration: formData.session_duration,
         userName: formData.name, userEmail: formData.email,
-        onSuccess: async () => {
-          await bookingsService.update(booking.id, { payment_status: "paid", status: "confirmed", meeting_room_id: `foundarly-${booking.id}` });
-          
-          // Send confirmation emails (non-blocking)
-          emailService.sendBookingConfirmation(booking.id).catch(err => {
-            console.error('Failed to send confirmation emails:', err);
-            // Don't show error to user - booking is still successful
-          });
-          
-          toast.success("Payment successful! Booking confirmed.");
-          setSubmitted(true); setPaymentProcessing(false);
+        onSuccess: async (paymentId: string, orderId: string, signature: string) => {
+          try {
+            // Verify payment signature via Edge Function
+            const { data: verificationResult, error: verifyError } = await supabase.functions.invoke('verify-razorpay-payment', {
+              body: {
+                razorpay_payment_id: paymentId,
+                razorpay_order_id: orderId,
+                razorpay_signature: signature,
+                bookingId: booking.id
+              }
+            });
+
+            if (verifyError || !verificationResult?.verified) {
+              throw new Error('Payment verification failed. Please contact support.');
+            }
+
+            // Send confirmation emails (non-blocking)
+            emailService.sendBookingConfirmation(booking.id).catch(err => {
+              console.error('Failed to send confirmation emails:', err);
+            });
+            
+            toast.success("Payment verified! Booking confirmed.");
+            setSubmitted(true);
+            setPaymentProcessing(false);
+          } catch (error: any) {
+            console.error('Verification error:', error);
+            toast.error(error.message || "Payment verification failed");
+            setPaymentProcessing(false);
+          }
         },
         onFailure: async (error) => {
           await bookingsService.delete(booking.id);
