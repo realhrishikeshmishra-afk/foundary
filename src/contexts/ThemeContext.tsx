@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { settingsService } from '@/services/settings';
+import { secureLog } from '@/utils/security';
 
 type Theme = 'dark' | 'light';
 
@@ -31,7 +32,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         applyTheme('light');
       }
     } catch (error) {
-      console.error('Error loading theme:', error);
+      secureLog.error('Error loading theme:', error);
       applyTheme('light');
     } finally {
       setLoading(false);
@@ -45,7 +46,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       await settingsService.upsert('site_theme', newTheme);
     } catch (error) {
-      console.error('Error saving theme:', error);
+      secureLog.error('Error saving theme:', error);
     }
   };
 
