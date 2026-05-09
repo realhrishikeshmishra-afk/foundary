@@ -45,6 +45,7 @@ import Privacy from "./pages/Privacy";
 import NetworkingTerms from "./pages/NetworkingTerms";
 import Meeting from "./pages/Meeting";
 import Review from "./pages/Review";
+import UPIPaymentPage from "./pages/UPIPayment";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +83,7 @@ const App = () => (
               <Route path="/networking-terms" element={<NetworkingTerms />} />
               <Route path="/meeting/:roomId" element={<Meeting />} />
               <Route path="/review/:bookingId" element={<Review />} />
+              <Route path="/upi-payment" element={<UPIPaymentPage />} />
               <Route path="/login" element={<Login />} />
               <Route
                 path="/admin"
