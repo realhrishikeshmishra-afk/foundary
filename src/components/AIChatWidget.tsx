@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const quickQuestions = [
   "How do I book a consultation?",
-  "What services does Foundrly offer?",
+  "What services does foundarly offer?",
   "Tell me about the consultants",
   "How does pricing work?",
 ];
@@ -99,7 +99,7 @@ export default function AIChatWidget() {
                 <Sparkles className="h-4 w-4 text-white" />
               </div>
               <div>
-                <p className="font-display font-semibold text-white text-sm leading-tight">Foundrly Assistant</p>
+                <p className="font-display font-semibold text-white text-sm leading-tight">foundarly Assistant</p>
                 <p className="text-white/80 text-xs">Always here to help</p>
               </div>
             </div>
@@ -119,7 +119,7 @@ export default function AIChatWidget() {
                 <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
                   <Sparkles className="h-7 w-7 text-primary" />
                 </div>
-                <h4 className="font-display font-semibold text-foreground mb-1">Welcome to Foundrly!</h4>
+                <h4 className="font-display font-semibold text-foreground mb-1">Welcome to foundarly!</h4>
                 <p className="text-sm text-muted-foreground mb-5 max-w-xs">
                   Ask me anything about our consultants, bookings, or platform features.
                 </p>
@@ -201,7 +201,7 @@ export default function AIChatWidget() {
             </div>
             <p className="text-xs text-muted-foreground text-center mt-2 flex items-center justify-center gap-1">
               <Sparkles className="h-3 w-3 text-primary" />
-              Powered by Foundrly AI
+              Powered by foundarly AI
             </p>
           </div>
         </div>

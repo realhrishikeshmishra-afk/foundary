@@ -26,6 +26,7 @@ export default function Footer() {
             <div className="flex flex-col gap-2">
               <Link to="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">Our Story</Link>
               <Link to="/blog" className="text-sm text-muted-foreground hover:text-primary transition-colors">Blog</Link>
+              <a href="https://foundarly01.netlify.app" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary transition-colors">Careers</a>
               <Link to="/faqs" className="text-sm text-muted-foreground hover:text-primary transition-colors">FAQs</Link>
             </div>
           </div>
