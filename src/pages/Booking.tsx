@@ -18,6 +18,13 @@ import { initiateRazorpayPayment } from "@/services/razorpay";
 import { emailService } from "@/services/email";
 import { supabase } from "@/lib/supabase";
 import { PageLoader } from "@/components/PageLoader";
+import { BookingSEO } from "@/components/SEO";
+import { 
+  validateEmail, 
+  sanitizeString, 
+  checkRateLimit,
+  secureLog 
+} from "@/utils/security";
 
 function Particle({ x, y, size, delay, dur }: { x: string; y: string; size: number; delay: number; dur: number }) {
   return (
@@ -92,20 +99,74 @@ export default function BookingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) { toast.error("Please login"); navigate("/login"); return; }
-    if (!formData.consultant_id) { toast.error("Please select a consultant"); return; }
-    if (!formData.date || !formData.time) { toast.error("Please select a date and time"); return; }
+    
+    if (!user) { 
+      toast.error("Please login"); 
+      navigate("/login"); 
+      return; 
+    }
+
+    // Rate limiting (max 3 bookings per minute per user)
+    if (!checkRateLimit(`booking-${user.id}`, 3, 60000)) {
+      toast.error("Too many booking attempts. Please wait a moment.");
+      return;
+    }
+
+    // Validate inputs
+    if (!formData.consultant_id) { 
+      toast.error("Please select a consultant"); 
+      return; 
+    }
+    if (!formData.date || !formData.time) { 
+      toast.error("Please select a date and time"); 
+      return; 
+    }
+    if (!validateEmail(formData.email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    if (formData.name.trim().length < 2) {
+      toast.error("Please enter your full name");
+      return;
+    }
+
+    // Validate date is not in the past
+    const selectedDate = new Date(`${formData.date}T${formData.time}`);
+    if (selectedDate < new Date()) {
+      toast.error("Please select a future date and time");
+      return;
+    }
+
     setPaymentProcessing(true);
+    
     try {
       const booking = await bookingsService.create({
-        user_id: user.id, consultant_id: formData.consultant_id, name: formData.name, email: formData.email,
-        date: formData.date, time: formData.time, message: formData.message || null,
-        session_duration: formData.session_duration, session_price: sessionPrice, payment_status: "pending", status: "pending",
+        user_id: user.id, 
+        consultant_id: formData.consultant_id, 
+        name: sanitizeString(formData.name), 
+        email: formData.email.toLowerCase().trim(),
+        date: formData.date, 
+        time: formData.time, 
+        message: formData.message ? sanitizeString(formData.message) : null,
+        session_duration: formData.session_duration, 
+        session_price: sessionPrice, 
+        payment_status: "pending", 
+        status: "pending",
       });
+      
+      // Redirect to UPI payment page
+      navigate(`/upi-payment?booking=${booking.id}`);
+      return;
+      
+      // Old Razorpay flow (kept for reference, not executed)
       await initiateRazorpayPayment({
-        amount: sessionPrice || 0, currency: "INR", bookingId: booking.id,
-        consultantName: selectedConsultant?.name || "", sessionDuration: formData.session_duration,
-        userName: formData.name, userEmail: formData.email,
+        amount: sessionPrice || 0, 
+        currency: "INR", 
+        bookingId: booking.id,
+        consultantName: selectedConsultant?.name || "", 
+        sessionDuration: formData.session_duration,
+        userName: formData.name, 
+        userEmail: formData.email,
         onSuccess: async (paymentId: string, orderId: string, signature: string) => {
           try {
             // Verify payment signature via Edge Function
@@ -124,26 +185,30 @@ export default function BookingPage() {
 
             // Send confirmation emails (non-blocking)
             emailService.sendBookingConfirmation(booking.id).catch(err => {
-              console.error('Failed to send confirmation emails:', err);
+              secureLog.error('Failed to send confirmation emails:', err);
             });
             
             toast.success("Payment verified! Booking confirmed.");
             setSubmitted(true);
             setPaymentProcessing(false);
           } catch (error: any) {
-            console.error('Verification error:', error);
+            secureLog.error('Verification error:', error);
             toast.error(error.message || "Payment verification failed");
             setPaymentProcessing(false);
           }
         },
         onFailure: async (error) => {
           await bookingsService.delete(booking.id);
-          if (error?.message !== "Payment cancelled by user") toast.error(error?.description || "Payment failed.");
-          else toast.info("Payment cancelled.");
+          if (error?.message !== "Payment cancelled by user") {
+            toast.error(error?.description || "Payment failed.");
+          } else {
+            toast.info("Payment cancelled.");
+          }
           setPaymentProcessing(false);
         },
       });
     } catch (error: any) {
+      secureLog.error('Booking error:', error);
       toast.error(error.message || "Failed to process booking.");
       setPaymentProcessing(false);
     }
@@ -153,6 +218,7 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
+      <BookingSEO />
       <Header />
 
       {/* ── Hero ── */}

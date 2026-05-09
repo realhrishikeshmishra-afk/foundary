@@ -9,7 +9,7 @@ import CenterPanel from "@/components/networking/CenterPanel";
 import RightSidebar from "@/components/networking/RightSidebar";
 import CreateGroupModal from "@/components/networking/CreateGroupModal";
 import { toast } from "sonner";
-import SEO from "@/components/SEO";
+import { SEO } from "@/components/SEO";
 
 export default function NetworkHub() {
   const { user } = useAuth();

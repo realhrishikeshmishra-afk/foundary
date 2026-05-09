@@ -83,7 +83,7 @@ export default function ApplyConsultant() {
                 Application Submitted!
               </h1>
               <p className="text-muted-foreground mb-8">
-                Thank you for applying to become a Foundrly consultant. Our team will review your application and contact you within 3-5 business days.
+                Thank you for applying to become a foundarly consultant. Our team will review your application and contact you within 3-5 business days.
               </p>
               <Button onClick={() => navigate('/')} className="glow-gold-sm">
                 Back to Home

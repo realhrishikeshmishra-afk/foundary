@@ -12,7 +12,6 @@ import { consultantDashboardService } from "@/services/consultantDashboard";
 import { emailService } from "@/services/email";
 import { useNavigate, Link } from "react-router-dom";
 import { SkeletonList } from "@/components/PageLoader";
-import { initiateRazorpayPayment } from "@/services/razorpay";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -63,10 +62,10 @@ const PARTICLES = [
   { x: "8%",  y: "68%", size: 3, delay: 0.7, dur: 5   },
 ];
 
-function BookingCard({ booking, index, onRetry, onCancel, onRemove, onReschedule, retryingId, formatPrice }: {
+function BookingCard({ booking, index, onRetry, onCancel, onRemove, onReschedule, retryingId, formatPrice, navigate }: {
   booking: Booking; index: number; onRetry: (b: Booking) => void; onCancel: (id: string) => void;
   onRemove: (id: string) => void; onReschedule: (b: Booking) => void;
-  retryingId: string | null; formatPrice: (v: number) => string;
+  retryingId: string | null; formatPrice: (v: number) => string; navigate: any;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
@@ -189,17 +188,10 @@ function BookingCard({ booking, index, onRetry, onCancel, onRemove, onReschedule
           {booking.payment_status === "pending" && booking.status === "pending" && (
             <>
               <span className="flex items-center gap-1.5 text-xs text-yellow-600 bg-yellow-500/10 border border-yellow-500/20 rounded-full px-3 py-1">
-                <AlertCircle className="h-3 w-3" /> Payment incomplete
+                <AlertCircle className="h-3 w-3" /> Payment verification pending
               </span>
-              <Button size="sm" className="glow-gold-sm gap-1.5 text-xs" disabled={retryingId === booking.id} onClick={() => onRetry(booking)}>
-                {retryingId === booking.id ? (
-                  <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</>
-                ) : (
-                  <><CreditCard className="h-3.5 w-3.5" /> Complete Payment</>
-                )}
-              </Button>
-              <Button size="sm" variant="ghost" className="text-xs text-destructive hover:bg-destructive/10 gap-1.5" onClick={() => onCancel(booking.id)}>
-                <Trash2 className="h-3.5 w-3.5" /> Cancel
+              <Button size="sm" variant="ghost" className="text-xs text-muted-foreground hover:bg-secondary gap-1.5" onClick={() => navigate(`/upi-payment?booking=${booking.id}`)}>
+                View Payment Details
               </Button>
             </>
           )}
@@ -294,24 +286,8 @@ export default function MyBookingsPage() {
   };
 
   const handleRetryPayment = async (booking: Booking) => {
-    setRetryingId(booking.id);
-    try {
-      await initiateRazorpayPayment({
-        amount: booking.session_price || 0, currency: "INR", bookingId: booking.id,
-        consultantName: booking.consultants?.name || "", sessionDuration: booking.session_duration || 60,
-        userName: booking.name, userEmail: booking.email,
-        onSuccess: async () => {
-          await bookingsService.update(booking.id, { payment_status: "paid", status: "confirmed", meeting_room_id: `foundarly-${booking.id}` });
-          toast.success("Payment successful! Booking confirmed.");
-          loadBookings(); setRetryingId(null);
-        },
-        onFailure: async (error) => {
-          if (error?.message !== "Payment cancelled by user") toast.error(error?.description || "Payment failed.");
-          else toast.info("Payment cancelled.");
-          setRetryingId(null);
-        },
-      });
-    } catch { toast.error("Failed to initiate payment."); setRetryingId(null); }
+    // Redirect to UPI payment page
+    navigate(`/upi-payment?booking=${booking.id}`);
   };
 
   const handleCancelBooking = async () => {
@@ -496,7 +472,7 @@ export default function MyBookingsPage() {
                 <BookingCard key={booking.id} booking={booking} index={i}
                   onRetry={handleRetryPayment} onCancel={setCancelId} onRemove={setRemoveId}
                   onReschedule={openRescheduleDialog}
-                  retryingId={retryingId} formatPrice={formatPrice} />
+                  retryingId={retryingId} formatPrice={formatPrice} navigate={navigate} />
               ))}
             </div>
           )}
