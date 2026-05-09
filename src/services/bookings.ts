@@ -1,5 +1,16 @@
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
+import {
+  validateUUID,
+  validateDate,
+  validateTime,
+  validateAmount,
+  validateSessionDuration,
+  validateBookingStatus,
+  validatePaymentStatus,
+  sanitizeString,
+  validateEmail,
+} from '@/utils/security';
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type BookingInsert = Database['public']['Tables']['bookings']['Insert'];
@@ -23,6 +34,10 @@ export const bookingsService = {
   },
 
   async getByUserId(userId: string) {
+    if (!validateUUID(userId)) {
+      throw new Error('Invalid user ID');
+    }
+
     const { data, error } = await supabase
       .from('bookings')
       .select(`
@@ -40,9 +55,40 @@ export const bookingsService = {
   },
 
   async create(booking: BookingInsert) {
+    // Validate all inputs
+    if (!validateUUID(booking.user_id)) {
+      throw new Error('Invalid user ID');
+    }
+    if (!validateUUID(booking.consultant_id)) {
+      throw new Error('Invalid consultant ID');
+    }
+    if (!validateEmail(booking.email)) {
+      throw new Error('Invalid email address');
+    }
+    if (!validateDate(booking.date)) {
+      throw new Error('Invalid date format');
+    }
+    if (!validateTime(booking.time)) {
+      throw new Error('Invalid time format');
+    }
+    if (!validateSessionDuration(booking.session_duration)) {
+      throw new Error('Invalid session duration');
+    }
+    if (booking.session_price && !validateAmount(booking.session_price)) {
+      throw new Error('Invalid session price');
+    }
+
+    // Sanitize string inputs
+    const sanitizedBooking = {
+      ...booking,
+      name: sanitizeString(booking.name),
+      email: booking.email.toLowerCase().trim(),
+      message: booking.message ? sanitizeString(booking.message) : null,
+    };
+
     const { data, error } = await supabase
       .from('bookings')
-      .insert(booking)
+      .insert(sanitizedBooking)
       .select()
       .single();
     
@@ -51,6 +97,24 @@ export const bookingsService = {
   },
 
   async update(id: string, updates: BookingUpdate) {
+    if (!validateUUID(id)) {
+      throw new Error('Invalid booking ID');
+    }
+
+    // Validate updates
+    if (updates.status && !validateBookingStatus(updates.status)) {
+      throw new Error('Invalid booking status');
+    }
+    if (updates.payment_status && !validatePaymentStatus(updates.payment_status)) {
+      throw new Error('Invalid payment status');
+    }
+    if (updates.date && !validateDate(updates.date)) {
+      throw new Error('Invalid date format');
+    }
+    if (updates.time && !validateTime(updates.time)) {
+      throw new Error('Invalid time format');
+    }
+
     const { data, error } = await supabase
       .from('bookings')
       .update(updates)
@@ -63,6 +127,10 @@ export const bookingsService = {
   },
 
   async delete(id: string) {
+    if (!validateUUID(id)) {
+      throw new Error('Invalid booking ID');
+    }
+
     const { error } = await supabase
       .from('bookings')
       .delete()
@@ -72,18 +140,27 @@ export const bookingsService = {
   },
 
   async updateStatus(id: string, status: Booking['status']) {
+    if (!validateBookingStatus(status)) {
+      throw new Error('Invalid booking status');
+    }
     return this.update(id, { status });
   },
 
   async updatePaymentStatus(id: string, paymentStatus: Booking['payment_status']) {
+    if (!validatePaymentStatus(paymentStatus)) {
+      throw new Error('Invalid payment status');
+    }
     return this.update(id, { payment_status: paymentStatus });
   },
 
   async reschedule(id: string, newDate: string, newTime: string) {
+    if (!validateDate(newDate) || !validateTime(newTime)) {
+      throw new Error('Invalid date or time format');
+    }
     return this.update(id, { 
       date: newDate, 
       time: newTime,
-      status: 'confirmed' // Reset to confirmed when rescheduled
+      status: 'confirmed'
     });
   },
 };

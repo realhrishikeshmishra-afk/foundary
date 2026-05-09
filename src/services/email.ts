@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { secureLog } from '@/utils/security';
 
 export const emailService = {
   /**
@@ -30,7 +31,7 @@ export const emailService = {
         return { success: false, error: data?.error || 'Failed to send emails' };
       }
 
-      console.log('Booking confirmation emails sent successfully');
+      secureLog.info('Booking confirmation emails sent successfully');
       return { success: true };
     } catch (error: any) {
       console.error('Failed to send booking emails:', error);

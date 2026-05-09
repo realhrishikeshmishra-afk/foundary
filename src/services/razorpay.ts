@@ -44,15 +44,19 @@ export async function initiateRazorpayPayment(options: RazorpayOptions): Promise
     throw new Error('Payment gateway is not configured.');
   }
 
+  // Validate key format
+  if (!keyId.startsWith('rzp_test_') && !keyId.startsWith('rzp_live_')) {
+    throw new Error('Invalid Razorpay key format. Please check your configuration.');
+  }
+
   // Amount must be in paise (multiply USD/INR by 100)
-  const razorpayOptions = {
+  const razorpayOptions: any = {
     key: keyId,
     amount: options.amount * 100, // convert to paise
     currency: options.currency || 'INR',
-    name: 'Foundrly',
+    name: 'Foundraly',
     description: `${options.sessionDuration}-min consultation with ${options.consultantName}`,
     image: '/favicon.ico',
-    order_id: options.bookingId, // use booking ID as reference
     prefill: {
       name: options.userName,
       email: options.userEmail,
@@ -79,9 +83,17 @@ export async function initiateRazorpayPayment(options: RazorpayOptions): Promise
     },
   };
 
+  // Note: order_id is removed - not needed for basic checkout
+  // If you want to use Orders API, create order first via backend
+
   const rzp = new window.Razorpay(razorpayOptions);
   rzp.on('payment.failed', (response: any) => {
     options.onFailure(response.error);
   });
-  rzp.open();
+  
+  try {
+    rzp.open();
+  } catch (error) {
+    throw new Error('Failed to open payment gateway. Please try again.');
+  }
 }
