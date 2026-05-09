@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Search, Download, Video, Trash2, Copy, Check, ExternalLink, Mail, CheckCircle } from "lucide-react";
+import { Search, Download, Video, Trash2, Copy, Check, ExternalLink, Mail, CheckCircle, X, CreditCard, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -19,7 +20,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { bookingsService } from "@/services/bookings";
 import { emailService } from "@/services/email";
+import { upiPaymentService } from "@/services/upiPayment";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 const statusColor = (s: string) => {
@@ -37,6 +40,7 @@ const paymentColor = (s: string) => {
 
 export default function AdminBookings() {
   const { formatPrice } = useCurrency();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showRescheduleOnly, setShowRescheduleOnly] = useState(false);
@@ -50,6 +54,10 @@ export default function AdminBookings() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any | null>(null);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [adminNotes, setAdminNotes] = useState("");
 
   // Form state
   const [form, setForm] = useState({
@@ -67,7 +75,24 @@ export default function AdminBookings() {
   const loadBookings = async () => {
     try {
       const data = await bookingsService.getAll();
-      setBookings(data);
+      
+      // Try to load UPI payment details, but don't fail if table doesn't exist
+      const bookingsWithPayments = await Promise.all(
+        data.map(async (booking) => {
+          try {
+            const payment = await upiPaymentService.getPaymentByBookingId(booking.id);
+            return { ...booking, upi_payment: payment };
+          } catch (error: any) {
+            // Silently ignore if table doesn't exist (406 error)
+            if (error?.code === '406' || error?.code === 'PGRST116' || error?.message?.includes('406')) {
+              return { ...booking, upi_payment: null };
+            }
+            return { ...booking, upi_payment: null };
+          }
+        })
+      );
+      
+      setBookings(bookingsWithPayments);
     } catch (error) {
       console.error('Error loading bookings:', error);
       toast.error("Failed to load bookings");
@@ -159,14 +184,18 @@ export default function AdminBookings() {
       const result = await emailService.sendBookingConfirmation(bookingId);
       if (result.success) {
         toast.success("Confirmation emails sent successfully!");
+        // Mark email as sent in local state
+        setBookings(prev => prev.map(b => 
+          b.id === bookingId ? { ...b, email_sent: true } : b
+        ));
       } else {
-        // Show warning but don't fail - admin can share link manually
-        toast.warning("Email system unavailable. Copy and share the meeting link manually.");
-        console.error("Email error details:", result.error);
+        // Email system unavailable - not critical, just log
+        console.warn("Email system unavailable:", result.error);
+        toast.info("Booking confirmed! Email notifications are temporarily unavailable.");
       }
     } catch (error) {
-      console.error('Email error:', error);
-      toast.warning("Email system unavailable. Copy and share the meeting link manually.");
+      console.warn('Email error:', error);
+      toast.info("Booking confirmed! Email notifications are temporarily unavailable.");
     } finally {
       setSendingEmailId(null);
     }
@@ -177,10 +206,17 @@ export default function AdminBookings() {
     try {
       const updates: any = {
         status: "confirmed",
+        payment_status: "paid",
         meeting_room_id: `foundarly-${booking.id}`,
       };
 
       await bookingsService.update(booking.id, updates);
+      
+      // If there's a UPI payment, verify it
+      if (booking.upi_payment) {
+        await upiPaymentService.verifyPayment(booking.upi_payment.id, "Payment verified by admin");
+      }
+      
       toast.success("Booking approved and meeting room created!");
       loadBookings();
     } catch (error) {
@@ -188,6 +224,69 @@ export default function AdminBookings() {
       toast.error("Failed to approve booking");
     } finally {
       setApprovingId(null);
+    }
+  };
+
+  const openPaymentDialog = (booking: any) => {
+    if (!booking.upi_payment) {
+      toast.error("No payment details found");
+      return;
+    }
+    setSelectedPayment(booking.upi_payment);
+    setAdminNotes("");
+    setPaymentDialogOpen(true);
+  };
+
+  const handleVerifyPayment = async () => {
+    if (!selectedPayment || !user) return;
+    
+    setVerifyingPayment(true);
+    try {
+      // Verify the payment
+      await upiPaymentService.verifyPayment(selectedPayment.id, user.id, adminNotes || "Payment verified");
+      
+      // Get the booking and update it with meeting room
+      const booking = bookings.find(b => b.id === selectedPayment.booking_id);
+      if (booking) {
+        await bookingsService.update(booking.id, {
+          status: "confirmed",
+          payment_status: "paid",
+          meeting_room_id: `foundarly-${booking.id}`,
+        });
+      }
+      
+      toast.success("Payment verified! Booking confirmed and meeting room created.");
+      setPaymentDialogOpen(false);
+      setSelectedPayment(null);
+      setAdminNotes("");
+      loadBookings();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to verify payment");
+    } finally {
+      setVerifyingPayment(false);
+    }
+  };
+
+  const handleRejectPayment = async () => {
+    if (!selectedPayment || !user) return;
+    
+    if (!adminNotes.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+    
+    setVerifyingPayment(true);
+    try {
+      await upiPaymentService.rejectPayment(selectedPayment.id, user.id, adminNotes);
+      toast.success("Payment rejected. Booking cancelled.");
+      setPaymentDialogOpen(false);
+      setSelectedPayment(null);
+      setAdminNotes("");
+      loadBookings();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to reject payment");
+    } finally {
+      setVerifyingPayment(false);
     }
   };
 
@@ -378,6 +477,7 @@ export default function AdminBookings() {
               <TableHead className="text-xs">Meeting Room</TableHead>
               <TableHead className="text-xs">Payment</TableHead>
               <TableHead className="text-xs">Status</TableHead>
+              <TableHead className="text-xs text-center">Email</TableHead>
               <TableHead className="text-xs text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -426,16 +526,62 @@ export default function AdminBookings() {
                   )}
                 </TableCell>
                 <TableCell className={`text-xs font-medium ${paymentColor(b.payment_status)}`}>
-                  {b.payment_status.charAt(0).toUpperCase() + b.payment_status.slice(1)}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span>{b.payment_status.charAt(0).toUpperCase() + b.payment_status.slice(1)}</span>
+                      {b.payment_status === "pending" && b.upi_payment && (
+                        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                          Needs Verification
+                        </Badge>
+                      )}
+                    </div>
+                    {/* Verify Payment Button under Payment column */}
+                    {b.payment_status === "pending" && b.upi_payment && (
+                      <Button 
+                        variant="default"
+                        size="sm" 
+                        className="text-xs bg-amber-600 hover:bg-amber-700 text-white w-full"
+                        onClick={() => openPaymentDialog(b)}
+                        title="View and verify payment"
+                      >
+                        <CreditCard className="h-3.5 w-3.5 mr-1" />
+                        <span className="text-xs font-semibold">Verify Payment</span>
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className={`text-xs ${statusColor(b.status)}`}>
                     {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
                   </Badge>
                 </TableCell>
+                <TableCell className="text-center">
+                  {b.status === "confirmed" && b.meeting_room_id && (
+                    <div className="flex flex-col items-center gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-xs text-green-600 hover:text-green-700 hover:bg-green-50 h-8 w-8 p-0"
+                        onClick={() => sendBookingEmail(b.id)}
+                        disabled={sendingEmailId === b.id}
+                        title="Send confirmation emails"
+                      >
+                        {sendingEmailId === b.id ? (
+                          <span className="w-3 h-3 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin" />
+                        ) : (
+                          <Mail className="h-4 w-4" />
+                        )}
+                      </Button>
+                      {/* Checkmark if email was sent */}
+                      {b.email_sent && (
+                        <CheckCircle className="h-3 w-3 text-green-500" title="Email sent" />
+                      )}
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
-                    {b.status === "pending" && (
+                    {b.status === "pending" && !b.upi_payment && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
@@ -451,22 +597,6 @@ export default function AdminBookings() {
                             <CheckCircle className="h-3.5 w-3.5 mr-1" />
                             <span className="text-xs">Approve</span>
                           </>
-                        )}
-                      </Button>
-                    )}
-                    {b.status === "confirmed" && b.meeting_room_id && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
-                        onClick={() => sendBookingEmail(b.id)}
-                        disabled={sendingEmailId === b.id}
-                        title="Send confirmation emails"
-                      >
-                        {sendingEmailId === b.id ? (
-                          <span className="text-xs">Sending...</span>
-                        ) : (
-                          <Mail className="h-3.5 w-3.5" />
                         )}
                       </Button>
                     )}
@@ -631,6 +761,142 @@ export default function AdminBookings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Payment Verification Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2 text-lg md:text-xl">
+              <CreditCard className="h-5 w-5 text-primary" />
+              Verify Payment
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              Review the payment details and verify or reject the transaction
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPayment && (
+            <div className="space-y-4 py-4">
+              {/* Customer Details */}
+              <div className="bg-secondary/30 rounded-lg p-3 md:p-4 space-y-3">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Customer Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Name</p>
+                    <p className="font-medium break-words">{selectedPayment.customer_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Phone</p>
+                    <p className="font-medium">{selectedPayment.customer_phone}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-muted-foreground text-xs">Email</p>
+                    <p className="font-medium break-all">{selectedPayment.customer_email}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Details */}
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 md:p-4 space-y-3">
+                <h3 className="font-semibold text-sm text-primary">Payment Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div className="md:col-span-2">
+                    <p className="text-muted-foreground text-xs">Transaction ID</p>
+                    <p className="font-mono font-bold break-all">{selectedPayment.transaction_id}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Amount</p>
+                    <p className="font-bold text-primary">{formatPrice(selectedPayment.payment_amount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Payment Method</p>
+                    <p className="font-medium">{selectedPayment.payment_method || 'UPI'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-muted-foreground text-xs">Submitted On</p>
+                    <p className="font-medium text-xs">{new Date(selectedPayment.created_at).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Booking Details */}
+              <div className="bg-secondary/30 rounded-lg p-3 md:p-4 space-y-3">
+                <h3 className="font-semibold text-sm">Booking Details</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Date</p>
+                    <p className="font-medium">{new Date(selectedPayment.booking_date).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Time</p>
+                    <p className="font-medium">{selectedPayment.booking_time}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground text-xs">Duration</p>
+                    <p className="font-medium">{selectedPayment.session_duration} minutes</p>
+                  </div>
+                </div>
+                {selectedPayment.booking_message && (
+                  <div>
+                    <p className="text-muted-foreground text-xs">Message</p>
+                    <p className="text-sm mt-1 break-words">{selectedPayment.booking_message}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Admin Notes */}
+              <div>
+                <Label htmlFor="adminNotes" className="text-sm font-medium mb-2 block">
+                  Admin Notes {selectedPayment.status === 'pending' && <span className="text-destructive">*</span>}
+                </Label>
+                <Textarea
+                  id="adminNotes"
+                  placeholder="Add notes about this payment verification..."
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  className="bg-background border-border min-h-[80px] text-sm"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {selectedPayment.status === 'pending' ? 'Required for rejection' : 'Optional notes for record keeping'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 flex-col sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPaymentDialogOpen(false);
+                setSelectedPayment(null);
+                setAdminNotes("");
+              }}
+              disabled={verifyingPayment}
+              className="w-full sm:w-auto"
+            >
+              Close
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRejectPayment}
+              disabled={verifyingPayment}
+              className="w-full sm:w-auto"
+            >
+              {verifyingPayment ? "Processing..." : "Reject Payment"}
+            </Button>
+            <Button
+              className="glow-gold-sm w-full sm:w-auto"
+              onClick={handleVerifyPayment}
+              disabled={verifyingPayment}
+            >
+              {verifyingPayment ? "Processing..." : "Verify & Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
