@@ -86,7 +86,7 @@ export default function BookingPage() {
     else setSelectedConsultant(null);
   }, [formData.consultant_id, consultants]);
 
-  const sessionPrice = formData.session_duration === 30 ? selectedConsultant?.pricing_30 : selectedConsultant?.pricing_60;
+  const sessionPrice = selectedConsultant?.pricing_60;
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -148,7 +148,7 @@ export default function BookingPage() {
         date: formData.date, 
         time: formData.time, 
         message: formData.message ? sanitizeString(formData.message) : null,
-        session_duration: formData.session_duration, 
+        session_duration: 60, 
         session_price: sessionPrice, 
         payment_status: "pending", 
         status: "pending",
@@ -334,21 +334,15 @@ export default function BookingPage() {
                   <motion.div className="bg-secondary/40 border border-border rounded-xl p-4"
                     initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} transition={{ duration: 0.3 }}>
                     <label className="text-sm font-medium text-foreground mb-3 block">Session Duration</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[{ duration: 30, price: selectedConsultant.pricing_30, label: "Quick consultation" },
-                        { duration: 60, price: selectedConsultant.pricing_60, label: "Deep-dive session" }].map(({ duration, price, label }) => (
-                        <motion.button key={duration} type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                          onClick={() => setFormData(prev => ({ ...prev, session_duration: duration }))}
-                          className={`p-4 rounded-xl border-2 text-left transition-all ${formData.session_duration === duration ? "border-primary bg-primary/10 shadow-sm" : "border-border hover:border-primary/40"}`}>
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <Clock className="h-3.5 w-3.5 text-primary" />
-                            <span className="font-semibold text-foreground text-sm">{duration} min</span>
-                          </div>
-                          <div className="text-xl font-bold text-primary">{formatPrice(price)}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{label}</div>
-                        </motion.button>
-                      ))}
-                    </div>
+                    <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                      className="w-full p-4 rounded-xl border-2 border-primary bg-primary/10 shadow-sm text-left">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Clock className="h-3.5 w-3.5 text-primary" />
+                        <span className="font-semibold text-foreground text-sm">30-60 min session</span>
+                      </div>
+                      <div className="text-xl font-bold text-primary">{formatPrice(selectedConsultant.pricing_60)}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Deep-dive consultation</div>
+                    </motion.button>
                   </motion.div>
                 )}
 
@@ -386,12 +380,13 @@ der-primary/50"
                     <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Order Summary</p>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{selectedConsultant.name}</span>
-                      <span className="text-foreground">{formData.session_duration} min session</span>
+                      <span className="text-foreground">30-60 min session</span>
                     </div>
                     <div className="flex justify-between font-bold border-t border-primary/20 pt-2">
                       <span className="text-foreground">Total</span>
                       <span className="text-primary text-lg">{formatPrice(sessionPrice)}</span>
                     </div>
+                    <p className="text-[10px] text-muted-foreground pt-1 border-t border-primary/10">* Prices may vary — subject to change based on consultant expertise and session requirements.</p>
                   </motion.div>
                 )}
 

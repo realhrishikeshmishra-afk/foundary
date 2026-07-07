@@ -54,7 +54,7 @@ export async function initiateRazorpayPayment(options: RazorpayOptions): Promise
     key: keyId,
     amount: options.amount * 100, // convert to paise
     currency: options.currency || 'INR',
-    name: 'Foundraly',
+    name: 'Foundarly',
     description: `${options.sessionDuration}-min consultation with ${options.consultantName}`,
     image: '/favicon.ico',
     prefill: {
@@ -67,7 +67,7 @@ export async function initiateRazorpayPayment(options: RazorpayOptions): Promise
       duration: `${options.sessionDuration} minutes`,
     },
     theme: {
-      color: '#F5A623', // Foundrly gold
+      color: '#F5A623', // Foundarly gold
     },
     modal: {
       ondismiss: () => {

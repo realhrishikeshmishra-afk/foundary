@@ -482,7 +482,7 @@ function HowItWorksSection() {
             <span className="text-primary text-xs font-semibold tracking-[0.15em] uppercase">The Process</span>
           </div>
           <h2 className="font-display text-4xl md:text-5xl font-bold">
-            How <span className="text-gradient-gold">Foundarly Works</span>
+            How <span className="text-gradient-gold">Foundarly Works</span>?
           </h2>
           <p className="mt-4 text-muted-foreground text-sm max-w-md mx-auto">
             From discovery to your personalised session summary — here's your journey.

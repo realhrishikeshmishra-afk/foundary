@@ -22,11 +22,12 @@ import { adminNetworkingService } from "@/services/adminNetworking";
 import { toast } from "sonner";
 
 const CATEGORIES = [
-  "General", "Founders", "Technology", "Marketing", 
-  "Finance", "Career", "Product", "Freelance", "Showcase"
+  "General", "Founders", "Technology", "Industry",
+  "Business", "Marketing", "Finance", "Education",
+  "Career", "Product", "Freelance", "Showcase"
 ];
 
-const ICONS = ["💬", "🚀", "🤖", "📈", "💰", "💼", "🛠️", "🎨", "⭐"];
+const ICONS = ["💬", "🚀", "🤖", "🏭", "📊", "📈", "💰", "🎓", "💼", "🛠️", "🎨", "⭐"];
 
 export default function AdminNetworkingChannels() {
   const [channels, setChannels] = useState<any[]>([]);

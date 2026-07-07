@@ -40,42 +40,40 @@ export default function PricingPage() {
           </AnimatedSection>
 
           {loading ? (
-            <SkeletonGrid count={3} cols={3} />
+            <SkeletonGrid count={1} cols={1} />
           ) : tiers.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p>Pricing information coming soon.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              {tiers.map((tier, i) => (
-                <AnimatedSection key={tier.id} delay={i * 0.12}>
-                  <div className={`relative bg-gradient-card border rounded-lg p-8 flex flex-col h-full ${
-                    tier.is_popular ? "border-primary/40 glow-gold-sm" : "border-border"
-                  }`}>
-                    {tier.is_popular && (
+            <div className="max-w-md mx-auto">
+              {(() => {
+                const mainTier = tiers.find(t => t.is_popular) || tiers[tiers.length - 1];
+                return (
+                  <AnimatedSection>
+                    <div className="relative bg-gradient-card border border-primary/40 glow-gold-sm rounded-lg p-8 flex flex-col">
                       <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-4 py-1 rounded-full">Most Popular</span>
-                    )}
-                    <h3 className="font-display text-xl font-semibold mb-2">{tier.name}</h3>
-                    {tier.description && (
-                      <p className="text-sm text-muted-foreground mb-4">{tier.description}</p>
-                    )}
-                    <p className="text-4xl font-bold text-foreground mb-6">{formatPrice(tier.price)}</p>
-                    <ul className="space-y-3 flex-1 mb-8">
-                      {tier.features.map((f, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <Check size={16} className="text-primary mt-0.5 shrink-0" />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <Link to="/booking">
-                      <Button className={`w-full ${tier.is_popular ? "glow-gold-sm" : ""}`} variant={tier.is_popular ? "default" : "outline"}>
-                        Book Now
-                      </Button>
-                    </Link>
-                  </div>
-                </AnimatedSection>
-              ))}
+                      <h3 className="font-display text-xl font-semibold mb-2">{mainTier.name}</h3>
+                      <p className="text-sm text-muted-foreground mb-4">30-60 min session</p>
+                      <p className="text-4xl font-bold text-foreground mb-6">{formatPrice(mainTier.price)}</p>
+                      <ul className="space-y-3 flex-1 mb-8">
+                        {mainTier.features.map((f, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <Check size={16} className="text-primary mt-0.5 shrink-0" />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                      <Link to="/booking">
+                        <Button className="w-full glow-gold-sm" variant="default">
+                          Book Now
+                        </Button>
+                      </Link>
+                    </div>
+                  </AnimatedSection>
+                );
+              })()}
+              <p className="text-center text-xs text-muted-foreground mt-4">* Prices may vary — subject to change based on consultant expertise and session requirements.</p>
             </div>
           )}
         </div>
