@@ -8,6 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
+import { loginAdmin } from "@/lib/adminAuth";
 
 export default function LoginPage() {
   const [isSignup, setIsSignup] = useState(false);
@@ -25,6 +26,14 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    const adminResult = loginAdmin(email, password);
+    if (adminResult.success) {
+      toast.success("Admin access granted");
+      navigate("/admin", { replace: true });
+      setLoading(false);
+      return;
+    }
 
     try {
       if (isSignup) {
@@ -123,6 +132,9 @@ export default function LoginPage() {
                 <button onClick={() => setIsSignup(!isSignup)} className="text-primary hover:underline font-medium">
                   {isSignup ? "Sign In" : "Sign Up"}
                 </button>
+              </p>
+              <p className="text-center text-xs text-muted-foreground mt-3">
+                For admin access, use admin@foundarly.com with password admin1234, or visit /admin/login.
               </p>
             </div>
           </AnimatedSection>

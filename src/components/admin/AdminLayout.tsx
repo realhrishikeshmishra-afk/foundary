@@ -14,7 +14,7 @@ export default function AdminLayout() {
               <Link to="/" className="font-display text-lg font-bold text-gradient-gold">
                 Foundarly
               </Link>
-              <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">Admin</span>
+              <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5">Admin Dashboard</span>
             </div>
             <Link to="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               ← Back to Site

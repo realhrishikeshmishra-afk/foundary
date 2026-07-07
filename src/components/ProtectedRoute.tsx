@@ -1,5 +1,6 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { isAdminAuthenticated } from '@/lib/adminAuth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ export default function ProtectedRoute({
   allowedRoles
 }: ProtectedRouteProps) {
   const { user, profile, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -22,13 +24,18 @@ export default function ProtectedRoute({
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (requireAdmin) {
+    const isAuthorized = isAdminAuthenticated() || profile?.role === 'admin';
+
+    if (!isAuthorized) {
+      return <Navigate to="/admin/login" replace state={{ from: location }} />;
+    }
+
+    return <>{children}</>;
   }
 
-  // Check specific role requirements
-  if (requireAdmin && profile?.role !== 'admin') {
-    return <Navigate to="/" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
   // Check allowed roles list

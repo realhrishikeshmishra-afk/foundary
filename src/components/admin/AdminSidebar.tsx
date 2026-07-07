@@ -32,6 +32,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { logoutAdmin } from "@/lib/adminAuth";
 
 const menuItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
@@ -58,6 +60,12 @@ const networkingMenuItems = [
 export default function AdminSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logoutAdmin();
+    navigate("/admin/login", { replace: true });
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border bg-background">
@@ -111,7 +119,15 @@ export default function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-3">
+      <SidebarFooter className="p-3 space-y-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className="w-full justify-start text-muted-foreground hover:text-foreground"
+        >
+          <span className="text-sm">Logout</span>
+        </Button>
         <Button
           variant="ghost"
           size="sm"

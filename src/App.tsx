@@ -21,6 +21,7 @@ import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import FAQs from "./pages/FAQs";
 import Login from "./pages/Login";
+import AdminLoginPage from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
 import AdminLayout from "./components/admin/AdminLayout";
 import AdminOverview from "./pages/admin/AdminOverview";
@@ -85,6 +86,7 @@ const App = () => (
               <Route path="/review/:bookingId" element={<Review />} />
               <Route path="/upi-payment" element={<UPIPaymentPage />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/admin/login" element={<AdminLoginPage />} />
               <Route
                 path="/admin"
                 element={
