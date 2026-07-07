@@ -13,9 +13,6 @@ export default defineConfig({
   server: {
     host: "::",
     port: 8080,
-    hmr: {
-      overlay: false,
-    },
   },
   plugins: [react()],
   resolve: {
@@ -38,7 +35,5 @@ export default defineConfig({
       },
     },
   },
-  esbuild: {
-    drop: ['console', 'debugger'],
-  },
+
 });
