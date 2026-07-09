@@ -128,10 +128,10 @@ export const secureLog = {
  */
 export const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
-  'script-src': ["'self'", "'unsafe-inline'", 'https://checkout.razorpay.com'],
-  'style-src': ["'self'", "'unsafe-inline'"],
+  'script-src': ["'self'", "'unsafe-inline'", 'https://checkout.razorpay.com', 'https://vercel.live'],
+  'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
   'img-src': ["'self'", 'data:', 'https:', 'blob:'],
-  'font-src': ["'self'", 'data:'],
+  'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
   'connect-src': [
     "'self'",
     'https://tzihsuzxwziirpkvxysr.supabase.co',
